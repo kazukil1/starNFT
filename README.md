@@ -1,6 +1,6 @@
-# NFTurbo - NFT数字藏品交易平台
+# StarNFT - NFT数字藏品交易平台
 
-> 一个基于 Spring Cloud Alibaba 微服务架构的 NFT 数字藏品交易平台，项目处于开发阶段，主要作为面试项目使用。
+> 一个基于 Spring Cloud Alibaba 微服务架构的 NFT 数字藏品交易平台，项目处于开发阶段。
 
 ![Java Version](https://img.shields.io/badge/Java-21-orange?style=flat&logo=openjdk)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.2-brightgreen?style=flat&logo=springboot)
