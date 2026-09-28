@@ -1,0 +1,102 @@
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-简历项目经历.md-29-**① 秒杀库存：Lua 原子预扣减 + 数据库 InventoryHint，两阶段扣减防超卖、抗热点**
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-简历项目经历.md-30-- **S/T**：热门藏品开售瞬时高并发，既要抗并发又要防超卖，且不能把压力全部压到 DB。
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-简历项目经历.md:31:- **A**：下单时用 **Redis Lua 脚本**在一次执行内完成"幂等校验 + 库存判断 + 原子扣减 + 记流水"（`AbstractInventoryRedisService`），利用 Redis 单线程实现串行化；DB 侧用阿里云 **Inventory Hint**（`UPDATE /*+ COMMIT_ON_SUCCESS ROLLBACK_ON_FAIL TARGET_AFFECT_ROW 1 */`，`collection_sqlmap.xml:31`）抗高并发热点行更新；`saleable_inventory = saleable_inventory - #{quantity}` 直接做 SQL 原子扣减，免乐观锁。
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-简历项目经历.md-32-- **R**：库存操作由"分布式锁的 4 次 Redis 往返（加锁/读/扣/解锁）"降为 **1 次 Lua 往返**；DB 侧热点行更新经 Row Cache + 组提交优化，**下单峰值不再打爆 DB**，无需引入 MQ 削峰。
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-简历项目经历.md-33-
+--
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-简历项目经历.md-135-**为什么不用分布式锁？** 秒杀只要"抗并发 + 防超卖"。Redisson 锁若不用 Lua 需**多次 Redis 往返**（加锁/读/扣/解锁）；而 **Lua 借助 Redis 单线程在服务端一次执行完成"检查 + 扣减"**，本身即串行化——"先加锁再用 Lua"属多此一举。
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-简历项目经历.md-136-
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-简历项目经历.md:137:**为什么库存扣减不加乐观锁？** 高并发下乐观锁"先干活后加锁"会大量失败回滚；而扣减诉求是"大家都成功且不扣错"，用 `SET saleable_inventory = saleable_inventory - x` 的 SQL 原子写法天然无并发错误，只需 `WHERE ... AND saleable_inventory >= x` 防超卖，其余交给 DB 行锁。
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-简历项目经历.md-138-
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-简历项目经历.md-139-**关键代码锚点**：
+--
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-291-| 表 | 作用 |
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-292-|----|------|
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md:293:| `collection` | 藏品主表（名称/封面/价格/库存 `quantity/saleable_inventory/occupied_inventory`/状态） |
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-294-| `held_collection` | 持有藏品（购买后生成，含持有者、序列号 `serial_no`、`nft_id`、`tx_hash`） |
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-295-| `collection_stream` | 藏品变更流水 |
+--
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-455-- 不加悲观锁：秒杀不适合悲观锁（见上）。
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-456-- 不加乐观锁：乐观锁"先干活后加锁"，高并发下大量失败（100 线程同拿 version=1，99 个失败回滚）；而库存扣减诉求是"大家都扣成功且不扣错"。
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md:457:- 秘诀：**DB 扣减用 `SET saleable_inventory = saleable_inventory - #{quantity}` 这种"在 SQL 里减"的写法**，天然无并发错误，只需保证"不超卖"（`WHERE ... AND saleable_inventory >= #{quantity}`），剩下的 update 行锁会解决。
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-458-
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-459-### 5.2 InventoryHint：数据库热点扣减
+--
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-461-- 数据库扣减 SQL 用 **阿里云 DMS 的 Inventory Hint**（`nft-turbo-goods/nft-turbo-collection/src/main/resources/mapper/collection_sqlmap.xml:32`，实测）：
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-462-  ```sql
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md:463:  UPDATE /*+ COMMIT_ON_SUCCESS ROLLBACK_ON_FAIL TARGET_AFFECT_ROW 1 */ collection
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md:464:  SET saleable_inventory = saleable_inventory - #{quantity}, lock_version = lock_version + 1, gmt_modified = now()
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-465-  WHERE ...
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-466-  ```
+--
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-544-| 短信重发 / 邀请排行榜 | **Redisson `RLock`** | 私有方法用不了注解 AOP |
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-545-
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md:546:> 重点话术：**支付回调不加分布式锁**——因为真正并发点是库存扣减，而库存已在 DB 用 `saleable_inventory = saleable_inventory - x` 原子操作 + 行锁保证安全，再加分布式锁（按藏品 id）反而会让大量用户抢锁失败。
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-547-
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-548-### 5.7 缓存与数据库一致性
+--
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-575-
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-576-**Q2：为什么库存扣减不加乐观锁？**
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md:577:A：高并发下乐观锁会大量失败（100 线程抢同一 version，99 个失败回滚）；扣减诉求是"都成功且不扣错"。用 `saleable_inventory = saleable_inventory - x` 的 SQL 扣减天然无并发错误，只需防超卖。
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-578-
+D:\BaiduNetdiskDownload\nfturbo-master\NFTurbo-项目面试全解.md-579-**Q3：为什么库存扣减不用 MQ 通知？**
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-41-  `forge_value` bigint DEFAULT NULL COMMENT '铸造值',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-42-  `obtain_type` varchar(32) NOT NULL DEFAULT 'DIRECT_SALE' COMMENT '获取途径：DIRECT_SALE/SYNTHESIS_ONLY/BOX_ONLY',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql:43:  `saleable_inventory` bigint DEFAULT NULL COMMENT '可销售库存',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-44-  `identifier` varchar(128) DEFAULT NULL COMMENT '幂等号',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-45-  `occupied_inventory` bigint DEFAULT NULL COMMENT '已占用库存',
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-77-  `obtain_type` varchar(32) DEFAULT NULL COMMENT '获取途径',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-78-  `state` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '状态',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql:79:  `saleable_inventory` bigint DEFAULT NULL COMMENT '可售库存',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-80-  `occupied_inventory` bigint DEFAULT NULL COMMENT '已占库存',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-81-  `create_time` datetime DEFAULT NULL COMMENT '藏品创建时间',
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-636-  `quantity` bigint DEFAULT NULL COMMENT '藏品数量',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-637-  `state` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '状态',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql:638:  `saleable_inventory` bigint DEFAULT NULL COMMENT '可售库存',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-639-  `occupied_inventory` bigint DEFAULT NULL COMMENT '已占库存',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-640-  `stream_type` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '流水类型',
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-667-  `forge_value` bigint DEFAULT NULL COMMENT '铸造值',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-668-  `obtain_type` varchar(32) DEFAULT NULL COMMENT '获取途径',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql:669:  `saleable_inventory` bigint DEFAULT NULL COMMENT '可销售库存',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-670-  `create_time` datetime DEFAULT NULL COMMENT '藏品创建时间',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo.sql-671-  `sale_time` datetime DEFAULT NULL COMMENT '藏品发售时间',
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo_changelog.sql-16-    `quantity` bigint NOT NULL COMMENT '总发行量',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo_changelog.sql-17-    `detail` text COMMENT '详情描述',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo_changelog.sql:18:    `saleable_inventory` bigint NOT NULL COMMENT '可售库存',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo_changelog.sql-19-    `creator_id` varchar(32) NOT NULL COMMENT '创建者ID',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo_changelog.sql-20-    `state` varchar(32) NOT NULL DEFAULT 'ACTIVE' COMMENT '状态：ACTIVE/INACTIVE',
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo_changelog.sql-141-    `price` decimal(18,6) DEFAULT NULL COMMENT '价格',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo_changelog.sql-142-    `quantity` bigint DEFAULT NULL COMMENT '发行总量',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo_changelog.sql:143:    `saleable_inventory` bigint DEFAULT NULL COMMENT '可售库存',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo_changelog.sql-144-    `state` varchar(128) DEFAULT NULL COMMENT '状态',
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-config\DDL_nfturbo_changelog.sql-145-    `changed_quantity` bigint NOT NULL COMMENT '变更数量',
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-15-        <result property="quantity" column="quantity"/>
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-16-        <result property="price" column="price"/>
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml:17:        <result property="saleableInventory" column="saleable_inventory"/>
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-18-        <result property="frozenInventory" column="frozen_inventory"/>
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-19-        <result property="createTime" column="create_time"/>
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-34-    <!--  库存扣减  -->
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-35-    <update id="sale">
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml:36:        UPDATE /*+ COMMIT_ON_SUCCESS ROLLBACK_ON_FAIL TARGET_AFFECT_ROW 1 */ blind_box
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml:37:        SET saleable_inventory = saleable_inventory - #{quantity}, lock_version = lock_version + 1,gmt_modified = now()
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml:38:        WHERE id = #{id} and <![CDATA[saleable_inventory >= #{quantity}]]>
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-39-    </update>
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-40-
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-42-    <update id="saleWithoutHint">
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-43-        UPDATE blind_box
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml:44:        SET saleable_inventory = saleable_inventory - #{quantity}, lock_version = lock_version + 1,gmt_modified = now()
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml:45:        WHERE id = #{id} and <![CDATA[saleable_inventory >= #{quantity}]]>
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-46-    </update>
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-47-
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-box\target\classes\mapper\blind_box_sqlmap.xml-48-    <!--  库存退还 -->
+...（已截断）
+── 寻迹（grep）

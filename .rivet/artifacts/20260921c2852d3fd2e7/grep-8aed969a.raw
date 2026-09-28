@@ -1,0 +1,42 @@
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-19-import com.alicp.jetcache.anno.CacheInvalidate;
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-20-import com.alicp.jetcache.anno.CacheRefresh;
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java:21:import com.alicp.jetcache.anno.CacheType;
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-22-import com.alicp.jetcache.anno.Cached;
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-23-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-82-    @Transactional(rollbackFor = Exception.class)
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-83-    @Override
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java:84:    @CacheInvalidate(name = ":collection:cache:id:", key = "#request.collectionId")
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-85-    public Boolean remove(CollectionRemoveRequest request) {
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-86-        // 1.查找藏品流水避免是否重复操作
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-102-
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-103-    // 修改藏品价格
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java:104:    @CacheInvalidate(name = ":collection:cache:id:", key = "#request.collectionId")
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-105-    @Override
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-106-    public Boolean modifyPrice(CollectionModifyPriceRequest request) {
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-132-    // 藏品评定（稀有度/系列/铸造值/获取途径）
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-133-    @Transactional(rollbackFor = Exception.class)
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java:134:    @CacheInvalidate(name = ":collection:cache:id:", key = "#request.collectionId")
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-135-    @Override
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-136-    public Boolean assess(CollectionAssessRequest request) {
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-315-    // 根据id查询藏品
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-316-    @Override
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java:317:    @Cached(name = ":collection:cache:id:", expire = 60, localExpire = 10, timeUnit = TimeUnit.MINUTES, cacheType = CacheType.BOTH,key = "#collectionId", cacheNullValue = true)
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java:318:    @CacheRefresh(refresh = 50, timeUnit = TimeUnit.MINUTES)
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-319-    public Collection queryById(Long collectionId) {
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-320-        return getById(collectionId);
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-323-    // 驳回藏品（只更新状态，不写流水/快照）
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-324-    @Override
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java:325:    @CacheInvalidate(name = ":collection:cache:id:", key = "#request.collectionId")
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-326-    public Boolean rejectCollection(CollectionStateChangeRequest request) {
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-327-        Collection collection = getById(request.getCollectionId());
+--
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-339-    // 重新提交审核（INIT → PENDING_REVIEW，不写流水/快照）
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java-340-    @Override
+D:\BaiduNetdiskDownload\nfturbo-master\nft-turbo-business\nft-turbo-goods\nft-turbo-collection\src\main\java\cn\yueyu\nft\turbo\collection\domain\service\impl\BaseCollectionService.java:341:    @CacheInvalidate(name = ":collection:cache:id:", key = "#request.collectionId")
+...（已截断）
+── 寻迹（grep）

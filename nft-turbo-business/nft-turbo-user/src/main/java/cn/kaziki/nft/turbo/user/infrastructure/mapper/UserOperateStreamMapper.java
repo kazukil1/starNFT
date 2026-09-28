@@ -1,0 +1,13 @@
+package cn.kaziki.nft.turbo.user.infrastructure.mapper;
+
+import cn.kaziki.nft.turbo.user.domain.entity.UserOperateStream;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Mapper;
+
+/**
+ * 用户操作流水表 Mapper 接口
+ */
+@Mapper
+public interface UserOperateStreamMapper extends BaseMapper<UserOperateStream> {
+
+}

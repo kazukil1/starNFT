@@ -1,0 +1,89 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+### IntelliJ IDEA ###
+.idea
+.mvn
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+
+### VS Code ###
+.vscode/
+
+### OS generated files ###
+.DS_Store
+Thumbs.db
+
+### Java ###
+*.class
+*.log
+
+### Maven ###
+*.flattened-pom.xml
+
+### Project docs (non-business) ###
+nft-turbo-config/pics/
+README.md
+replace_ips.sh
+
+### Packaging ###
+*.jar
+*.war
+*.ear
+*.tar
+*.tar.gz
+*.zip
+
+### Temp files ###
+*.tmp
+*.bak
+*~
+rebel.xml
+
+### Frontend (NFTurbo_Client) ###
+NFTurbo_Client/node_modules/
+NFTurbo_Client/unpackage/
+
+### Frontend (NFTurbo_Admin) ###
+NFTurbo_Admin/node_modules/
+NFTurbo_Admin/dist/
+NFTurbo_Admin/src/.umi/
+NFTurbo_Admin/src/.umi-production/
+NFTurbo_Admin/types/cache/
+
+### Docker Compose — runtime data ###
+NFTurbo_DockerCompose/mysql/data/
+NFTurbo_DockerCompose/mysql/logs/
+NFTurbo_DockerCompose/kibana/
+NFTurbo_DockerCompose/es/data/
+NFTurbo_DockerCompose/nacos/logs/
+NFTurbo_DockerCompose/redis/data/
+NFTurbo_DockerCompose/rocketMQ/data/
+NFTurbo_DockerCompose/seata-server/logs/
+NFTurbo_DockerCompose/sentinel/logs/
+
+application-local.yml
+
+### OSS 凭证（敏感信息，不提交）
+**/oss-credentials.yml
+### 头脑风暴原型（临时文件，不提交）
+.superpowers/
+
+### 项目文档（本地查阅，不提交到仓库）
+document/

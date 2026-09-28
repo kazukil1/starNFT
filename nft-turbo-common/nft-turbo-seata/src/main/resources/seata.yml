@@ -1,0 +1,26 @@
+seata:
+  application-id: ${spring.application.name}
+  tx-service-group: default_tx_group
+#  use-jdk-proxy: true
+#  enable-auto-data-source-proxy: false
+  enable-auto-data-source-proxy: true
+  config:
+    type: nacos
+    nacos:
+      server-addr: 192.168.150.101:8848
+      group: seata
+      data-id: seataServer.properties
+      namespace: seata_server
+  registry:
+    type: nacos
+    nacos:
+      application: seata-server
+      server-addr: 192.168.150.101:8848
+      group: seata
+      cluster: default
+      namespace: seata_server
+      access-key: seata
+      secret-key: SeataSecretKey0c382ef121d778043159209298fd40bf3850a017
+  service:
+    vgroup-mapping:
+      default_tx_group: default

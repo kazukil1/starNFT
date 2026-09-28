@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: @application.name@
+  config:
+    import: classpath:cache.yml,classpath:config.yml,classpath:limiter.yml
+  cloud:
+    gateway:
+      default-filters:
+        # 防止网关和后端微服务重复添加 CORS 响应头，确保响应头中每个值只出现一次，避免浏览器 CORS 错误。
+        - DedupeResponseHeader=Access-Control-Allow-Origin, RETAIN_UNIQUE
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: '*'
+            allowedHeaders: '*'
+            allowedMethods: '*'
+            allowCredentials: true
+      routes:
+        - id: nfturbo-auth
+          uri: lb://nfturbo-auth
+          predicates:
+            - Path=/auth/**,/token/**
+        - id: nfturbo-business
+          uri: lb://nft-turbo-business
+          predicates:
+            - Path=/trade/**,/order/**,/user/**,/collection/**,/box/**,/star/**,/synthesis/**,/album/**,/wxPay/**
+        - id: nfturbo-artist
+          uri: lb://nfturbo-artist
+          predicates:
+            - Path=/artist/**
+server:
+  port: 8081

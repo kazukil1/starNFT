@@ -1,0 +1,98 @@
+package cn.kaziki.nft.turbo.order.facade;
+
+import cn.kaziki.nft.turbo.api.order.constant.OrderErrorCode;
+import cn.kaziki.nft.turbo.api.order.request.OrderConfirmRequest;
+import cn.kaziki.nft.turbo.api.order.request.OrderCreateRequest;
+import cn.kaziki.nft.turbo.api.order.request.OrderDiscardRequest;
+import cn.kaziki.nft.turbo.api.order.response.OrderResponse;
+import cn.kaziki.nft.turbo.api.order.service.OrderTransactionFacadeService;
+import cn.kaziki.nft.turbo.base.exception.BizException;
+import cn.kaziki.nft.turbo.lock.DistributeLock;
+import cn.kaziki.nft.turbo.order.domain.service.OrderManageService;
+import cn.kaziki.nft.turbo.rpc.facade.Facade;
+import cn.kaziki.nft.turbo.tcc.entity.TransCancelSuccessType;
+import cn.kaziki.nft.turbo.tcc.entity.TransConfirmSuccessType;
+import cn.kaziki.nft.turbo.tcc.entity.TransTrySuccessType;
+import cn.kaziki.nft.turbo.tcc.request.TccRequest;
+import cn.kaziki.nft.turbo.tcc.response.TransactionCancelResponse;
+import cn.kaziki.nft.turbo.tcc.response.TransactionConfirmResponse;
+import cn.kaziki.nft.turbo.tcc.response.TransactionTryResponse;
+import cn.kaziki.nft.turbo.tcc.service.TransactionLogService;
+import cn.hutool.core.lang.Assert;
+import org.apache.dubbo.config.annotation.DubboService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+
+
+@DubboService(version = "1.0.0")
+public class OrderTransactionFacadeServiceImpl implements OrderTransactionFacadeService {
+
+    @Autowired
+    private OrderManageService orderManageService;
+
+    @Autowired
+    private TransactionLogService transactionLogService;
+
+    // 预创建订单
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @Facade
+    @DistributeLock(keyExpression = "#orderCreateRequest.orderId", scene = "NORMAL_BUY_ORDER")
+    public OrderResponse tryOrder(OrderCreateRequest orderCreateRequest, String businessScene) {
+        // 1 记录事务日志（TRY）
+        TransactionTryResponse transactionTryResponse = transactionLogService.tryTransaction(new TccRequest(orderCreateRequest.getOrderId(), businessScene, "ORDER"));
+        Assert.isTrue(transactionTryResponse.getSuccess(), "transaction try failed");
+
+        // 2.创建订单（CREATE）
+        if (transactionTryResponse.getTransTrySuccessType() == TransTrySuccessType.TRY_SUCCESS) {
+            OrderResponse orderResponse = orderManageService.createForTcc(orderCreateRequest);
+            Assert.isTrue(orderResponse.getSuccess(), () -> new BizException(OrderErrorCode.CREATE_ORDER_FAILED));
+            return orderResponse;
+        }
+
+        return new OrderResponse.OrderResponseBuilder().buildSuccess();
+    }
+
+    // 确认订单
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @Facade
+    @DistributeLock(keyExpression = "#orderConfirmRequest.orderId", scene = "NORMAL_BUY_ORDER")
+    public OrderResponse confirmOrder(OrderConfirmRequest orderConfirmRequest, String businessScene) {
+        // 1.更新事务日志（CONFIEM）
+        TransactionConfirmResponse transactionConfirmResponse = transactionLogService.confirmTransaction(new TccRequest(orderConfirmRequest.getOrderId(), businessScene, "ORDER"));
+        Assert.isTrue(transactionConfirmResponse.getSuccess(), "transaction confirm failed");
+
+        // 2.成功并且不是幂等，确认订单
+        if (transactionConfirmResponse.getTransConfirmSuccessType() == TransConfirmSuccessType.CONFIRM_SUCCESS) {
+            OrderResponse orderResponse = orderManageService.confirm(orderConfirmRequest);
+            Assert.isTrue(orderResponse.getSuccess(), () -> new BizException(OrderErrorCode.CREATE_ORDER_FAILED));
+
+            return orderResponse;
+        }
+
+        return new OrderResponse.OrderResponseBuilder().buildSuccess();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @Facade
+    @DistributeLock(keyExpression = "#orderDiscardRequest.orderId", scene = "NORMAL_BUY_ORDER")
+    public OrderResponse cancelOrder(OrderDiscardRequest orderDiscardRequest, String businessScene) {
+        // 1.更新或新增（空回滚）事务日志（CANCEL）
+        TransactionCancelResponse transactionCancelResponse = transactionLogService.cancelTransaction(new TccRequest(orderDiscardRequest.getOrderId(), businessScene, "ORDER"));
+        Assert.isTrue(transactionCancelResponse.getSuccess(), "transaction cancel failed");
+
+        // 2.
+        // 情况一：Try或者CONFIRM成功后的Cancel，废弃订单
+        if (transactionCancelResponse.getTransCancelSuccessType() == TransCancelSuccessType.CANCEL_AFTER_TRY_SUCCESS
+                || transactionCancelResponse.getTransCancelSuccessType() == TransCancelSuccessType.CANCEL_AFTER_CONFIRM_SUCCESS) {
+            OrderResponse orderResponse = orderManageService.discard(orderDiscardRequest);
+            Assert.isTrue(orderResponse.getSuccess(), () -> new BizException(OrderErrorCode.UPDATE_ORDER_FAILED));
+            return orderResponse;
+        }
+
+        // 情况二：如果发生空回滚，或者回滚幂等，则不进行操作
+        return new OrderResponse.OrderResponseBuilder().buildSuccess();
+    }
+}

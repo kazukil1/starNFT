@@ -1,0 +1,3 @@
+spring:
+  oss:
+    enabled: true

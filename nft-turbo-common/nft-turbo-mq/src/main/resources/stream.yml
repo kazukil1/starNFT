@@ -1,0 +1,6 @@
+spring:
+  cloud:
+    stream:
+      rocketmq:
+        binder:
+          name-server: 192.168.150.101:9876

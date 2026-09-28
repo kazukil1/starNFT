@@ -1,0 +1,82 @@
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-2-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-3-## 现象
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-4-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:5:运行 `NfTurboBusinessApplication`（nft-turbo-app 模块），调用 `POST /trade/newBuy` 接口后，`InventoryDecreaseTransactionListener.executeLocalTransaction()` 未被触发，断点不命中。
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-6-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-7-## 根因
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-8-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:9:`nft-turbo-app` 模块的 `application.yml` 中 `spring.cloud.function.definition` **覆盖**了 `nft-turbo-trade` 模块的定义，导致 `newBuy-out-0` 生产者绑定的 RocketMQ 事务消息配置未生效。
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-10-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-11-### 调用链路
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-12-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-13-```
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:14:POST /trade/newBuy
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:15:  → TradeController.newBuy()
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:16:    → StreamProducer.send("newBuy-out-0", tag, msg)
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-17-      → StreamBridge.send() 发事务消息
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-18-        → RocketMQ 回调 InventoryDecreaseTransactionListener.executeLocalTransaction()
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-19-```
+--
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-22-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-23-| 配置项 | nft-turbo-trade（被覆盖） | nft-turbo-app（生效） |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-24-|--------|--------------------------|---------------------|
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:25:| `function.definition` | `newBuy;newBuyPlus;...` | `chain;orderClose;heldCollection` |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:26:| `stream.rocketmq.bindings.newBuy-out-0` | ✅ `producerType: Trans` + `transactionListener: inventoryDecreaseTransactionListener` | ❌ 未配置 |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-27-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:28:Spring Boot 多模块加载时，主应用的 `application.yml` 中同名字符串属性 `spring.cloud.function.definition` 会覆盖依赖模块的值，导致 `newBuy` 未注册。
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-29-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:30:`newBuy-out-0` 的事务生产者配置（`producerType: Trans`、`transactionListener`）虽然在 trade 模块的 yml 中有定义，但由于依赖模块的 yml 加载优先级低于主应用，实际未被 Spring Cloud Stream 识别。`StreamBridge.send("newBuy-out-0", ...)` 发送的是**普通消息**而非事务消息，`TransactionListener` 永远不会被触发。
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-31-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-32-## 修复
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-33-
+--
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-48-说明：
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-49-- `orderClose` 有 `TradeOrderListener.orderClose()` Consumer bean
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-50-- `chain`、`heldCollection` 没有对应 bean，之前导致 `Dispatcher has no subscribers` 报错
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:51:- `newBuy`、`newBuyPlus` 等是 producer-only 函数（仅 `-out-0` 无 `-in-0`），通过 `StreamBridge` 动态创建绑定，无需在 `function.definition` 中声明
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-52-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:53:**2. 新增 `newBuy-out-0` 的 stream bindings 和 rocketmq 配置：**
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-54-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-55-```yaml
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-56-spring:
+--
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-58-    stream:
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-59-      rocketmq:
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-60-        bindings:
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:61:          newBuy-out-0:
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-62-            producer:
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-63-              producerType: Trans
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-64-              transactionListener: inventoryDecreaseTransactionListener
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-65-      bindings:
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:66:        newBuy-out-0:
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-67-          content-type: application/json
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:68:          destination: new-buy-topic
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-69-          group: trade-group
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-70-          binder: rocketmq
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-71-```
+--
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-75-| 问题 | 原因 | 修复 |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-76-|------|------|------|
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-77-| `function.definition` 被覆盖 | 主应用 yml 优先级高于依赖模块 | 将必要配置直接写在主应用 yml 中 |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:78:| 事务监听器不触发 | `newBuy-out-0` 的 `producerType: Trans` 配置未被加载 | 将 `rocketmq.bindings.newBuy-out-0` 和 `bindings.newBuy-out-0` 补到主应用 yml |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-79-| `chain-in-0` no subscribers | `chain` function 无对应 Consumer bean | 从 `function.definition` 中移除 `chain` |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-80-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-81-## 同类风险
+--
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-83-| 配置项 | transactionListener | bean 是否存在 |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-84-|--------|-------------------|--------------|
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-85-| `orderClose-out-0` | `orderCloseTransactionListener` | ✅ `OrderCloseTransactionListener`（nft-turbo-order），受同样 config merge 影响 |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:86:| `newBuyPlus-out-0` | `orderCreateTransactionListener` | ❌ 不存在 |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-87-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-88-建议后续补充 `orderCreateTransactionListener` 实现或移除未使用的绑定配置。
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-89-
+--
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-93-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-94-| TransactionListener | 绑定 | 触发入口 | 状态 |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-95-|---|---|---|---|
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md:96:| `InventoryDecreaseTransactionListener` | `newBuy-out-0` | `POST /trade/newBuy` | ✅ |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-97-| `OrderCloseTransactionListener` | `orderClose-out-0` | `POST /trade/cancel` | ✅ |
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-98-
+D:\BaiduNetdiskDownload\nfturbo-master\issue\InventoryDecreaseTransactionListener-not-invoked.md-99-两个 Listener 的根因相同：主应用 `application.yml` 的 `function.definition` 覆盖了依赖模块的定义，且部分 producer-only 绑定的 rocketmq 事务配置未在主应用 yml 中声明，导致 `StreamBridge.send()` 以普通消息而非事务消息发送。
+...（已截断）
+── 寻迹（grep）

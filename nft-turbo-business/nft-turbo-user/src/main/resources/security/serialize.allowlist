@@ -1,0 +1,3 @@
+condition.request.user.api.cn.kaziki.nft.turbo.UserPhoneQueryCondition
+condition.request.user.api.cn.kaziki.nft.turbo.UserPhoneAndPasswordQueryCondition
+condition.request.user.api.cn.kaziki.nft.turbo.UserIdQueryCondition

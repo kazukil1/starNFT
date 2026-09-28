@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: @application.name@
+  config:
+    import: optional:classpath:base.yml,classpath:rpc.yml,classpath:cache.yml,classpath:stream.yml,classpath:limiter.yml
+  cloud:
+    function:
+      definition: newBuy;newBuyPlus;normalBuyCancel;normalBuyPreCancel;newBuyPlusCancel;newBuyPlusPreCancel
+    stream:
+      rocketmq:
+        bindings:
+          newBuy-out-0:
+            producer:
+              producerType: Trans
+              transactionListener: inventoryDecreaseTransactionListener
+          newBuyPlus-out-0:
+            producer:
+              producerType: Trans
+              transactionListener: orderCreateTransactionListener
+      bindings:
+        newBuy-out-0:
+          content-type: application/json
+          destination: new-buy-topic
+          group: trade-group
+          binder: rocketmq
+        newBuyPlus-out-0:
+          content-type: application/json
+          destination: new-buy-plus-topic
+          group: new-buy-plus-group
+          binder: rocketmq
+        orderClose-in-0:
+          content-type: application/json
+          destination: order-close-topic
+          group: order-group
+          binder: rocketmq
+        normalBuyCancel-out-0:
+          content-type: application/json
+          destination: normal-buy-cancel-topic
+          group: trade-cancel-group
+          binder: rocketmq
+        normalBuyPreCancel-out-0:
+          content-type: application/json
+          destination: normal-buy-pre-cancel-topic
+          group: trade-pre-cancel-group
+          binder: rocketmq
+        newBuyPlusCancel-out-0:
+          content-type: application/json
+          destination: new-buy-plus-cancel-topic
+          group: new-buy-plus-cancel-group
+          binder: rocketmq
+        newBuyPlusPreCancel-out-0:
+          content-type: application/json
+          destination: new-buy-plus-pre-cancel-topic
+          group: new-buy-plus-pre-cancel-group
+          binder: rocketmq
+        normalBuyCancel-in-0:
+          content-type: application/json
+          destination: normal-buy-cancel-topic
+          group: trade-cancel-group
+          binder: rocketmq
+        normalBuyPreCancel-in-0:
+          content-type: application/json
+          destination: normal-buy-pre-cancel-topic
+          group: trade-pre-cancel-group
+          binder: rocketmq
+        newBuyPlusCancel-in-0:
+          content-type: application/json
+          destination: new-buy-plus-cancel-topic
+          group: new-buy-plus-cancel-group
+          binder: rocketmq
+        newBuyPlusPreCancel-in-0:
+          content-type: application/json
+          destination: new-buy-plus-pre-cancel-topic
+          group: new-buy-plus-pre-cancel-group
+          binder: rocketmq
+
+server:
+  port: 8084
+
+#dubbo:
+#  # 关闭启动时检查
+#  consumer:
+#    check: false
+#  application:
+#    name: nft-turbo-trade
